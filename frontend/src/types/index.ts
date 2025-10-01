@@ -69,3 +69,52 @@ export interface CertificateWithDetails {
     name: string;
   };
 }
+
+export interface TemplateField {
+  id: string;
+  name: string;
+  type: 'text' | 'date' | 'number';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  fontFamily: string;
+  fontColor: string;
+  textAlign: 'left' | 'center' | 'right';
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+}
+
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  templateType: 'image' | 'pdf';
+  filePath: string;
+  thumbnailPath?: string;
+  fields: TemplateField[];
+  width: number;
+  height: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateTemplateRequest {
+  name: string;
+  description?: string;
+  templateType: 'image' | 'pdf';
+  filePath: string;
+  thumbnailPath?: string;
+  fields: TemplateField[];
+  width: number;
+  height: number;
+}
+
+export interface GenerateFromTemplateRequest {
+  templateId: string;
+  studentId: string;
+  courseName: string;
+  issueDate?: string;
+}

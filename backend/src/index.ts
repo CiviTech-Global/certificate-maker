@@ -7,6 +7,7 @@ import { Database } from './models/database';
 import { createStudentRoutes } from './routes/students';
 import { createCertificateRoutes } from './routes/certificates';
 import { createCourseRoutes } from './routes/courses';
+import { createTemplateRoutes } from './routes/templates';
 
 // Load environment variables
 dotenv.config();
@@ -21,7 +22,10 @@ const db = new Database(process.env.DATABASE_PATH);
 // Middleware
 app.use(cors({
   origin: FRONTEND_URL,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Disposition', 'Content-Type']
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -29,7 +33,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Ensure required directories exist
 const ensureDirectoriesExist = () => {
-  const dirs = ['uploads', 'certificates'];
+  const dirs = ['uploads', 'uploads/templates', 'uploads/thumbnails', 'certificates'];
   dirs.forEach(dir => {
     const dirPath = path.join(__dirname, '..', dir);
     if (!fs.existsSync(dirPath)) {
@@ -53,6 +57,7 @@ app.get('/health', (req, res) => {
 app.use('/api/students', createStudentRoutes(db));
 app.use('/api/certificates', createCertificateRoutes(db));
 app.use('/api/courses', createCourseRoutes(db));
+app.use('/api/templates', createTemplateRoutes(db));
 
 // Certificate verification endpoint (public, no /api prefix)
 app.get('/verify/:id', async (req, res) => {

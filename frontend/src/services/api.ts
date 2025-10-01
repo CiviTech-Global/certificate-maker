@@ -5,7 +5,10 @@ import type {
   CreateStudentRequest,
   CreateCertificateRequest,
   ApiResponse,
-  CertificateWithDetails
+  CertificateWithDetails,
+  CertificateTemplate,
+  CreateTemplateRequest,
+  GenerateFromTemplateRequest
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -49,6 +52,11 @@ export const apiService = {
     return response.data;
   },
 
+  async deleteStudent(id: string): Promise<ApiResponse<any>> {
+    const response = await api.delete(`/api/students/${id}`);
+    return response.data;
+  },
+
   async uploadStudentsCSV(file: File): Promise<ApiResponse<any>> {
     const formData = new FormData();
     formData.append('csvFile', file);
@@ -69,6 +77,11 @@ export const apiService = {
 
   async createCourse(course: { name: string; description?: string; durationHours?: number }): Promise<ApiResponse<Course>> {
     const response = await api.post('/api/courses', course);
+    return response.data;
+  },
+
+  async deleteCourse(id: string): Promise<ApiResponse<any>> {
+    const response = await api.delete(`/api/courses/${id}`);
     return response.data;
   },
 
@@ -109,6 +122,54 @@ export const apiService = {
     return response.data;
   },
 
+  async deleteCertificate(certificateId: string): Promise<ApiResponse<any>> {
+    const response = await api.delete(`/api/certificates/${certificateId}`);
+    return response.data;
+  },
+
+  // Template endpoints
+  async uploadTemplate(file: File): Promise<ApiResponse<any>> {
+    const formData = new FormData();
+    formData.append('template', file);
+
+    const response = await api.post('/api/templates/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async createTemplate(template: CreateTemplateRequest): Promise<ApiResponse<CertificateTemplate>> {
+    const response = await api.post('/api/templates', template);
+    return response.data;
+  },
+
+  async getAllTemplates(): Promise<ApiResponse<CertificateTemplate[]>> {
+    const response = await api.get('/api/templates');
+    return response.data;
+  },
+
+  async getTemplateById(id: string): Promise<ApiResponse<CertificateTemplate>> {
+    const response = await api.get(`/api/templates/${id}`);
+    return response.data;
+  },
+
+  async updateTemplate(id: string, updates: Partial<CertificateTemplate>): Promise<ApiResponse<CertificateTemplate>> {
+    const response = await api.put(`/api/templates/${id}`, updates);
+    return response.data;
+  },
+
+  async deleteTemplate(id: string): Promise<ApiResponse<any>> {
+    const response = await api.delete(`/api/templates/${id}`);
+    return response.data;
+  },
+
+  async generateCertificateFromTemplate(request: GenerateFromTemplateRequest): Promise<ApiResponse<any>> {
+    const response = await api.post('/api/certificates/generate-from-template', request);
+    return response.data;
+  },
+
   // Utility methods
   getCertificateDownloadUrl(certificateId: string): string {
     return `${API_BASE_URL}/api/certificates/${certificateId}/download`;
@@ -116,5 +177,13 @@ export const apiService = {
 
   getCertificateVerificationUrl(certificateId: string): string {
     return `${API_BASE_URL}/verify/${certificateId}`;
+  },
+
+  getTemplateFileUrl(filename: string): string {
+    return `${API_BASE_URL}/api/templates/file/${filename}`;
+  },
+
+  getTemplateThumbnailUrl(filename: string): string {
+    return `${API_BASE_URL}/api/templates/thumbnail/${filename}`;
   }
 };

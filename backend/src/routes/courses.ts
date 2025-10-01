@@ -49,5 +49,19 @@ export function createCourseRoutes(db: Database) {
     }
   });
 
+  // Delete a course
+  router.delete('/:id', async (req, res) => {
+    try {
+      const deleted = await db.deleteCourse(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ success: false, error: 'Course not found' });
+      }
+      res.json({ success: true, message: 'Course deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete course' });
+    }
+  });
+
   return router;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Award, Users, FileText } from 'lucide-react';
+import { GraduationCap, Award, Users, FileText, Palette } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange
     { id: 'dashboard', label: 'Dashboard', icon: GraduationCap },
     { id: 'students', label: 'Students', icon: Users },
     { id: 'certificates', label: 'Certificates', icon: Award },
+    { id: 'templates', label: 'Templates', icon: Palette },
     { id: 'verify', label: 'Verify', icon: FileText },
   ];
 

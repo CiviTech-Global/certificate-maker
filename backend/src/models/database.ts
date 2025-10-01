@@ -1,5 +1,5 @@
 import sqlite3 from 'sqlite3';
-import { Student, Course, Certificate } from '../types';
+import { Student, Course, Certificate, CertificateTemplate } from '../types';
 
 export class Database {
   private db: sqlite3.Database;
@@ -47,9 +47,30 @@ export class Database {
           pdf_path TEXT,
           verification_url TEXT,
           qr_code_data TEXT,
+          template_id TEXT,
+          generation_method TEXT DEFAULT 'programmatic',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (student_id) REFERENCES students (id),
-          FOREIGN KEY (course_id) REFERENCES courses (id)
+          FOREIGN KEY (course_id) REFERENCES courses (id),
+          FOREIGN KEY (template_id) REFERENCES certificate_templates (id)
+        )
+      `);
+
+      // Certificate templates table
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS certificate_templates (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          template_type TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          thumbnail_path TEXT,
+          fields TEXT NOT NULL,
+          width INTEGER NOT NULL,
+          height INTEGER NOT NULL,
+          is_active INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
     });
@@ -129,6 +150,18 @@ export class Database {
     });
   }
 
+  async deleteStudent(id: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.db.run(`DELETE FROM students WHERE id = ?`, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this.changes > 0);
+        }
+      });
+    });
+  }
+
   // Course operations
   async createCourse(course: Omit<Course, 'id' | 'createdAt'>): Promise<Course> {
     return new Promise((resolve, reject) => {
@@ -189,6 +222,18 @@ export class Database {
             durationHours: row.duration_hours,
             createdAt: new Date(row.created_at)
           })));
+        }
+      });
+    });
+  }
+
+  async deleteCourse(id: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.db.run(`DELETE FROM courses WHERE id = ?`, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this.changes > 0);
         }
       });
     });
@@ -327,6 +372,225 @@ export class Database {
           }
         }
       );
+    });
+  }
+
+  async updateCertificate(id: string, updates: Partial<Certificate>): Promise<Certificate | null> {
+    return new Promise((resolve, reject) => {
+      const setParts: string[] = [];
+      const values: any[] = [];
+
+      if (updates.pdfPath !== undefined) {
+        setParts.push('pdf_path = ?');
+        values.push(updates.pdfPath);
+      }
+      if (updates.verificationUrl !== undefined) {
+        setParts.push('verification_url = ?');
+        values.push(updates.verificationUrl);
+      }
+      if (updates.qrCodeData !== undefined) {
+        setParts.push('qr_code_data = ?');
+        values.push(updates.qrCodeData);
+      }
+
+      if (setParts.length === 0) {
+        // Just fetch and return the certificate
+        this.db.get('SELECT * FROM certificates WHERE id = ?', [id], (err, row: any) => {
+          if (err) reject(err);
+          else if (!row) resolve(null);
+          else resolve(this.mapCertificateRow(row));
+        });
+        return;
+      }
+
+      values.push(id);
+
+      this.db.run(
+        `UPDATE certificates SET ${setParts.join(', ')} WHERE id = ?`,
+        values,
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Fetch and return updated certificate
+            this.db.get('SELECT * FROM certificates WHERE id = ?', [id], (err, row: any) => {
+              if (err) reject(err);
+              else if (!row) resolve(null);
+              else resolve(this.mapCertificateRow(row));
+            });
+          }
+        }
+      );
+    });
+  }
+
+  private mapCertificateRow(row: any): Certificate {
+    return {
+      id: row.id,
+      studentId: row.student_id,
+      courseId: row.course_id,
+      certificateNumber: row.certificate_number,
+      issueDate: new Date(row.issue_date),
+      pdfPath: row.pdf_path,
+      verificationUrl: row.verification_url,
+      qrCodeData: row.qr_code_data,
+      createdAt: new Date(row.created_at)
+    };
+  }
+
+  async deleteCertificate(id: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.db.run(`DELETE FROM certificates WHERE id = ?`, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this.changes > 0);
+        }
+      });
+    });
+  }
+
+  // Template operations
+  async createTemplate(template: Omit<CertificateTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<CertificateTemplate> {
+    return new Promise((resolve, reject) => {
+      const id = require('uuid').v4();
+      const now = new Date().toISOString();
+
+      this.db.run(
+        `INSERT INTO certificate_templates (id, name, description, template_type, file_path, thumbnail_path, fields, width, height, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, template.name, template.description, template.templateType, template.filePath, template.thumbnailPath, JSON.stringify(template.fields), template.width, template.height, template.isActive ? 1 : 0, now, now],
+        function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({
+              id,
+              name: template.name,
+              description: template.description,
+              templateType: template.templateType,
+              filePath: template.filePath,
+              thumbnailPath: template.thumbnailPath,
+              fields: template.fields,
+              width: template.width,
+              height: template.height,
+              isActive: template.isActive,
+              createdAt: new Date(now),
+              updatedAt: new Date(now)
+            });
+          }
+        }
+      );
+    });
+  }
+
+  async getAllTemplates(): Promise<CertificateTemplate[]> {
+    return new Promise((resolve, reject) => {
+      this.db.all(`SELECT * FROM certificate_templates ORDER BY created_at DESC`, (err, rows: any[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            templateType: row.template_type,
+            filePath: row.file_path,
+            thumbnailPath: row.thumbnail_path,
+            fields: JSON.parse(row.fields),
+            width: row.width,
+            height: row.height,
+            isActive: row.is_active === 1,
+            createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at)
+          })));
+        }
+      });
+    });
+  }
+
+  async getTemplateById(id: string): Promise<CertificateTemplate | null> {
+    return new Promise((resolve, reject) => {
+      this.db.get(`SELECT * FROM certificate_templates WHERE id = ?`, [id], (err, row: any) => {
+        if (err) {
+          reject(err);
+        } else if (!row) {
+          resolve(null);
+        } else {
+          resolve({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            templateType: row.template_type,
+            filePath: row.file_path,
+            thumbnailPath: row.thumbnail_path,
+            fields: JSON.parse(row.fields),
+            width: row.width,
+            height: row.height,
+            isActive: row.is_active === 1,
+            createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at)
+          });
+        }
+      });
+    });
+  }
+
+  async updateTemplate(id: string, updates: Partial<CertificateTemplate>): Promise<CertificateTemplate | null> {
+    return new Promise((resolve, reject) => {
+      const now = new Date().toISOString();
+      const setParts: string[] = [];
+      const values: any[] = [];
+
+      if (updates.name !== undefined) {
+        setParts.push('name = ?');
+        values.push(updates.name);
+      }
+      if (updates.description !== undefined) {
+        setParts.push('description = ?');
+        values.push(updates.description);
+      }
+      if (updates.fields !== undefined) {
+        setParts.push('fields = ?');
+        values.push(JSON.stringify(updates.fields));
+      }
+      if (updates.isActive !== undefined) {
+        setParts.push('is_active = ?');
+        values.push(updates.isActive ? 1 : 0);
+      }
+
+      setParts.push('updated_at = ?');
+      values.push(now);
+      values.push(id);
+
+      if (setParts.length === 1) {
+        this.getTemplateById(id).then(resolve).catch(reject);
+        return;
+      }
+
+      this.db.run(
+        `UPDATE certificate_templates SET ${setParts.join(', ')} WHERE id = ?`,
+        values,
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            this.getTemplateById(id).then(resolve).catch(reject);
+          }
+        }
+      );
+    });
+  }
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.db.run(`DELETE FROM certificate_templates WHERE id = ?`, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(this.changes > 0);
+        }
+      });
     });
   }
 

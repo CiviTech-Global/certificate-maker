@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { StudentsView } from './components/StudentsView';
 import { CertificatesView } from './components/CertificatesView';
 import { VerificationView } from './components/VerificationView';
+import { TemplatesView } from './components/TemplatesView';
 import { StudentForm } from './components/StudentForm';
 import { BulkUpload } from './components/BulkUpload';
 
@@ -37,6 +38,8 @@ function App() {
         );
       case 'certificates':
         return <CertificatesView />;
+      case 'templates':
+        return <TemplatesView />;
       case 'verify':
         return <VerificationView />;
       default:

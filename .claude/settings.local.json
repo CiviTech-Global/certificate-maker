@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(npm install)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(exit 0)",
+      "Bash(npm rebuild:*)",
+      "Bash(node:*)",
+      "Bash(timeout 8 npm run dev)",
+      "Bash(npm cache clean:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

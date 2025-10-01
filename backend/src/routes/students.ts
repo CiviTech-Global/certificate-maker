@@ -65,6 +65,20 @@ export function createStudentRoutes(db: Database) {
     }
   });
 
+  // Delete a student
+  router.delete('/:id', async (req, res) => {
+    try {
+      const deleted = await db.deleteStudent(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ success: false, error: 'Student not found' });
+      }
+      res.json({ success: true, message: 'Student deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete student' });
+    }
+  });
+
   // Bulk upload students from CSV
   router.post('/bulk-upload', upload.single('csvFile'), async (req, res) => {
     if (!req.file) {

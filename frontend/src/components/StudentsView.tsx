@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Mail, CreditCard, FileText, Award, Plus, Upload } from 'lucide-react';
+import { Search, User, Mail, CreditCard, FileText, Award, Plus, Upload, Trash2 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { CertificateGenerationModal } from './CertificateGenerationModal';
 import type { Student } from '../types';
 import { formatDateTime } from '../utils';
 import toast from 'react-hot-toast';
@@ -15,7 +16,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onCreateStudent, onB
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [generatingCertificate, setGeneratingCertificate] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     loadStudents();
@@ -56,50 +57,26 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onCreateStudent, onB
     setFilteredStudents(filtered);
   };
 
-  const handleGenerateCertificate = async (student: Student) => {
-    const courseName = prompt('Enter course name for the certificate:');
-    if (!courseName?.trim()) {
+  const handleGenerateCertificate = (student: Student) => {
+    setSelectedStudent(student);
+  };
+
+  const handleDeleteStudent = async (student: Student) => {
+    if (!confirm(`Are you sure you want to delete ${student.firstName} ${student.lastName}? This action cannot be undone.`)) {
       return;
     }
 
     try {
-      setGeneratingCertificate(student.id);
-      const response = await apiService.generateCertificate({
-        studentId: student.id,
-        courseName: courseName.trim()
-      });
-
+      const response = await apiService.deleteStudent(student.id);
       if (response.success) {
-        toast.success('Certificate generated successfully!');
-
-        // Optionally download the certificate
-        if (response.data?.certificate?.id) {
-          const downloadConfirm = confirm('Certificate generated! Do you want to download it now?');
-          if (downloadConfirm) {
-            try {
-              const blob = await apiService.downloadCertificate(response.data.certificate.id);
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `${response.data.certificate.certificateNumber}.pdf`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
-            } catch (downloadError) {
-              console.error('Download error:', downloadError);
-              toast.error('Certificate generated but download failed');
-            }
-          }
-        }
+        toast.success('Student deleted successfully');
+        loadStudents(); // Reload the list
       } else {
-        toast.error(response.error || 'Failed to generate certificate');
+        toast.error(response.error || 'Failed to delete student');
       }
     } catch (error: any) {
-      console.error('Error generating certificate:', error);
-      toast.error(error.response?.data?.error || 'Failed to generate certificate');
-    } finally {
-      setGeneratingCertificate(null);
+      console.error('Error deleting student:', error);
+      toast.error(error.response?.data?.error || 'Failed to delete student');
     }
   };
 
@@ -250,18 +227,22 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onCreateStudent, onB
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <button
-                        onClick={() => handleGenerateCertificate(student)}
-                        disabled={generatingCertificate === student.id}
-                        className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {generatingCertificate === student.id ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleGenerateCertificate(student)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all px-3 py-2 text-sm"
+                        >
                           <Award className="w-4 h-4" />
-                        )}
-                        <span>Generate Certificate</span>
-                      </button>
+                          <span>Generate</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student)}
+                          className="flex items-center space-x-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all px-3 py-2 text-sm"
+                          title="Delete student"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -301,6 +282,18 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onCreateStudent, onB
           </div>
         )}
       </div>
+
+      {/* Certificate Generation Modal */}
+      {selectedStudent && (
+        <CertificateGenerationModal
+          student={selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+          onSuccess={() => {
+            setSelectedStudent(null);
+            loadStudents();
+          }}
+        />
+      )}
     </div>
   );
 };
